@@ -1,0 +1,4 @@
+class Engine:
+    TEMP_POSTING_ARRAY_HEAD_FMT = "=II"
+    POSTING_ARRAY_HEAD_FMT = "=I"
+    POSTING_ARRAY_FMT = "I"
