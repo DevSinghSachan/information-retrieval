@@ -37,7 +37,6 @@ def count_file():
 def print_posting(f, posting_line):
   term, uses = posting_line
   posting_dict[term] = (f.tell(), len(uses))
-  # postings are laid out as "struct(TERM,#DOCS)array(uses)"
   # note that we need the TERM,#DOC info only while merging
   engine.print_posting(f,posting_line)
                      
@@ -129,7 +128,7 @@ while True:
           print_posting(comb_f, p1)
           p1 = engine.read_posting(b1_f)
         else:
-          print_posting(comb_f, p1)
+          print_posting(comb_f, p2)
           p2 = engine.read_posting(b2_f)
 
   # write the new merged posting lists block to file 'comb_f'

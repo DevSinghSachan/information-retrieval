@@ -11,13 +11,14 @@ class BasicEngine:
         else:
             return None    
     def print_posting(self, f, post):
+        # postings are laid out as "struct(TERM,#DOCS)array(uses)"
+        # while we don't need this information here it uses little space
+        # and makes the merge process easier
         term,uses = post
-        print term, len(uses)
         f.write(struct.pack(self.POSTING_HEAD_FMT,term, len(uses)))
         array(self.POSTING_ARRAY_FMT,uses).tofile(f)        
     def examine_posting(self,f):
         h = self.read_head(f)
-        print h
         while h:
             term,length = h
             posts = array(self.POSTING_ARRAY_FMT)

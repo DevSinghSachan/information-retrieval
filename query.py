@@ -11,8 +11,17 @@ if len(sys.argv) != 2:
 
 def merge_posting (postings1, postings2):
   new_posting = []
-  # provide implementation for merging two postings lists
-  print >> sys.stderr, 'you must provide implementation'
+  p1_i = 0
+  p2_i = 0
+  while p1_i < len(postings1) and p2_i < len(postings2):
+    if postings1[p1_i] == postings2[p2_i]:
+      new_posting.append(postings1[p1_i])
+      p1_i += 1
+      p2_i += 1
+    elif postings1[p1_i] < postings2[p2_i]:
+      p1_i += 1
+    else:
+      p2_i += 1
   return new_posting
 
 # file locate of all the index related files
@@ -59,7 +68,7 @@ while True:
     break
   input_parts = input.split()
   term_ids = map(lambda w : word_dict[w] if w in word_dict else None, input_parts)
-  if not all(term_ids):
+  if not all(map(lambda v : v is not None,term_ids)):
     print "no results found"
     continue
   term_ids = sorted(term_ids, key = lambda t : doc_freq_dict[t], reverse=True)    
@@ -67,15 +76,7 @@ while True:
   while len(term_ids) > 0 and len(docs) > 0:
     t, merge_docs = read_posting(term_ids.pop())    
     docs = merge_posting(docs, merge_docs)
-  print docs
   document_results = map(lambda d : doc_id_dict[d],docs)
   document_results.sort()
-  print document_results
-  
-  # next retrieve the postings list of each query term, and merge the posting lists
-  # to produce the final result
-
-  # posting = read_posting(word_id)
-
-  # don't forget to convert doc_id back to doc_name, and sort in lexicographical order
-  # before printing out to stdout
+  for d in document_results:
+    print d
