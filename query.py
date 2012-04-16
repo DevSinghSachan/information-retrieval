@@ -3,6 +3,7 @@ from collections import deque
 import os, glob, os.path
 import sys
 import re
+#from engine import CompressedEngine as Engine
 from engine import BasicEngine as Engine
 
 if len(sys.argv) != 2:

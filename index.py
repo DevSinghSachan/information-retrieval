@@ -96,7 +96,6 @@ print >> sys.stderr, '######\nposting list construction finished!\n##########'
 
 print >> sys.stderr, '\nMerging postings...'
 while True:
-  print block_q
   if len(block_q) <= 1:
     break
   b1 = block_q.popleft()
@@ -135,8 +134,8 @@ while True:
   b1_f.close()
   b2_f.close()
   comb_f.close()
-  #os.remove(out_dir+'/'+b1)
-  #os.remove(out_dir+'/'+b2)
+  os.remove(out_dir+'/'+b1)
+  os.remove(out_dir+'/'+b2)
   block_q.append(comb)
     
 print >> sys.stderr, '\nPosting Lists Merging DONE!'
