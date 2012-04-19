@@ -53,7 +53,7 @@ def merge_posting (line1, line2):
     if(line1[0][i1] < line2[0][i2]):
         next = line1[0][i1]
         i1 += 1
-    else
+    else:
         next = line2[0][i2]
         i2 += 1
     if merged[-1] != next:
