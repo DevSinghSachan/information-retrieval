@@ -61,7 +61,7 @@ def merge_posting (line1, line2):
   merged.extend(line1[0][i1:])
   merged.extend(line2[0][i2:])
   
-  return (line1[0],result)
+  return (line1[0],merged)
 
 doc_id = -1
 word_id = 0
