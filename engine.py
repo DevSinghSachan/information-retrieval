@@ -85,7 +85,7 @@ class GammaCompressedEngine(Engine):
             bytes.fromfile(f, length)
             posts = self.from_gaps(self.vb_decode(bytes.tolist()))
             return (term, posts)
-    def vb_encode(self,arr):
+    def vb_encode(self, arr):
         bytestream = array(self.POSTING_ARRAY_FMT)
         buf = ''
         numbits = 0
@@ -101,42 +101,59 @@ class GammaCompressedEngine(Engine):
                 b = b/2
             # s now contains a string of the binary.
             # Convert s into gamma compressed form
-            buf = buf + (len(s)-1)*'1'+s[1:]
+            s = (len(s)-1)*'1'+'0'+s[1:]
+            buf = buf + s
             # totally copying things all over the place :/
             while len(buf)>8:
                 numbits += 8
-                bytestream.extend(int(buf[:8],2))
+                bytestream.append(int(buf[:8],2))
                 buf = buf[8:]
         if(len(buf)>0):
             # this line does not run
             numbits += len(buf)
             buf = buf + '0'*(8-len(buf))
-            bytestream.extend(int(buf,2))
+            bytestream.append(int(buf,2))
         #TODO: Add numbits to file
-        # numbits
+        for i in range(4):
+            bytestream.insert(0,numbits%(1<<8))
+            numbits /=(1<<8)
+
         return bytestream
-    def vb_decode(self,bytes):
+
+    def vb_decode(self, bytes):
         #TODO Read numbits and stop if we've read numbits bits
+        numbits = 0
+        for i in range(4):
+            numbits = (numbits*1<<8)+bytes.pop(0)
         numbers = []
         n = 0
         getLength = True #getlength means we're still in the prefix
         l = 0
         for b in bytes:
+            if(numbits <= 0):
+                    break
             for bit in range(7,-1,-1):
+                if(numbits <= 0):
+                    break
+                numbits -= 1
                 if getLength:
                     if b & 1<<bit:
                         l += 1
                     else:
-                        getLength = false
-                        n += 1<<l
+                        if l==0:
+                            numbers.append(1)
+                        else:
+                            getLength = False
+                            n = 1<<l
+                            if l==0:
+                                numbers.append(1)
                 else:
                     if b & 1<<bit:
                         n += 1<<(l-1)
-                        l = l-1
-                        if(l==0):
-                            getLength = true
-                            numbers.append(n)
-            
+                    l = l-1
+                    if(l==0):
+                        getLength = True
+                        numbers.append(n)
         return numbers
 
 class BasicEngine(Engine):
