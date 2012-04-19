@@ -42,8 +42,25 @@ def print_posting(f, posting_line):
                      
 # function for merging two lines of postings list to create a new line of merged results
 def merge_posting (line1, line2):
-  result = list(set(line1[1]).union(set(line2[1])))
-  result.sort()
+  assert(line1[0]==line2[0])
+  #result = list(set(line1[1]).union(set(line2[1])))
+  #result.sort()
+  i1 = 0
+  i2 = 0
+  merged = []
+  while i1 < len(line1[0]) and i2 < len(line2[0]):
+    next = 0
+    if(line1[0][i1] < line2[0][i2]):
+        next = line1[0][i1]
+        i1 += 1
+    else
+        next = line2[0][i2]
+        i2 += 1
+    if merged[-1] != next:
+        merged.append(next)
+  merged.extend(line1[0][i1:])
+  merged.extend(line2[0][i2:])
+  
   return (line1[0],result)
 
 doc_id = -1
@@ -95,9 +112,7 @@ for d in sorted(os.listdir(root)):
 print >> sys.stderr, '######\nposting list construction finished!\n##########'
 
 print >> sys.stderr, '\nMerging postings...'
-while True:
-  if len(block_q) <= 1:
-    break
+while len(block_q) <= 1:
   b1 = block_q.popleft()
   b2 = block_q.popleft()
   print >> sys.stderr, 'merging %s and %s' % (b1, b2)
