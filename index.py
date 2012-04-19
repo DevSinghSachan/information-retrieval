@@ -5,7 +5,7 @@ import sys
 import re
 import struct
 from array import array
-from engine import BasicEngine as Engine
+from engine import GammaCompressedEngine as Engine
 
 engine = Engine()
 

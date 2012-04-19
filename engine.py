@@ -108,6 +108,7 @@ class GammaCompressedEngine(Engine):
                 bytestream.extend(int(buf[:8],2))
                 buf = buf[8:]
         if(len(buf)>0):
+            # this line does not run
             numbits += len(buf)
             buf = buf + '0'*(8-len(buf))
             bytestream.extend(int(buf,2))
@@ -125,7 +126,7 @@ class GammaCompressedEngine(Engine):
                 if getLength:
                     if b & 1<<bit:
                         l += 1
-                    else
+                    else:
                         getLength = false
                         n += 1<<l
                 else:
