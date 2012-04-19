@@ -5,7 +5,7 @@ import sys
 import re
 import struct
 from array import array
-from engine import GammaCompressedEngine as Engine
+from engine import CompressedEngine as Engine
 
 engine = Engine()
 
@@ -112,7 +112,7 @@ for d in sorted(os.listdir(root)):
 print >> sys.stderr, '######\nposting list construction finished!\n##########'
 
 print >> sys.stderr, '\nMerging postings...'
-while len(block_q) <= 1:
+while len(block_q) > 1:
   b1 = block_q.popleft()
   b2 = block_q.popleft()
   print >> sys.stderr, 'merging %s and %s' % (b1, b2)
