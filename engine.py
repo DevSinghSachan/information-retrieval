@@ -66,6 +66,78 @@ class CompressedEngine(Engine):
                 n = 0
         return numbers
 
+# We'll want the file size in bits stored since we can't store partial bytes at the head of the file
+class GammaCompressedEngine(Engine):
+    POSTING_HEAD_FMT = "=II"
+    POSTING_HEAD_SIZE = struct.calcsize(POSTING_HEAD_FMT)
+    POSTING_ARRAY_FMT = "B"
+    def print_posting(self, f, post):
+        # postings are laid out as "struct(TERM,#Bytes)array(encoded_uses)"
+        term, uses = post
+        encoded_uses = self.vb_encode(self.to_gaps(uses))
+        f.write(struct.pack(self.POSTING_HEAD_FMT, term, len(encoded_uses)))
+        encoded_uses.tofile(f)
+    def read_posting(self,f):
+        h = self.read_head(f)
+        if h:
+            term,length = h
+            bytes = array(self.POSTING_ARRAY_FMT)
+            bytes.fromfile(f, length)
+            posts = self.from_gaps(self.vb_decode(bytes.tolist()))
+            return (term, posts)
+    def vb_encode(self,arr):
+        bytestream = array(self.POSTING_ARRAY_FMT)
+        buf = ''
+        numbits = 0
+        for n in arr:
+            # pull bits from end
+            s = ''
+            b = n
+            while b>0:
+                if(b%2 == 1):
+                    s = ''.join(['1',s])
+                else:
+                    s = ''.join(['0',s])
+                b = b/2
+            # s now contains a string of the binary.
+            # Convert s into gamma compressed form
+            buf = buf + (len(s)-1)*'1'+s[1:]
+            # totally copying things all over the place :/
+            while len(buf)>8:
+                numbits += 8
+                bytestream.extend(int(buf[:8],2))
+                buf = buf[8:]
+        if(len(buf)>0):
+            numbits += len(buf)
+            buf = buf + '0'*(8-len(buf))
+            bytestream.extend(int(buf,2))
+        #TODO: Add numbits to file
+        # numbits
+        return bytestream
+    def vb_decode(self,bytes):
+        #TODO Read numbits and stop if we've read numbits bits
+        numbers = []
+        n = 0
+        getLength = True #getlength means we're still in the prefix
+        l = 0
+        for b in bytes:
+            for bit in range(7,-1,-1):
+                if getLength:
+                    if b & 1<<bit:
+                        l += 1
+                    else
+                        getLength = false
+                        n += 1<<l
+                else:
+                    if b & 1<<bit:
+                        n += 1<<(l-1)
+                        l = l-1
+                        if(l==0):
+                            getLength = true
+                            numbers.append(n)
+            
+        return numbers
+
 class BasicEngine(Engine):
     POSTING_HEAD_FMT = "=II"
     POSTING_HEAD_SIZE = struct.calcsize(POSTING_HEAD_FMT)
