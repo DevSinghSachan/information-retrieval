@@ -43,27 +43,30 @@ def print_posting(f, posting_line):
                      
 # function for merging two lines of postings list to create a new line of merged results
 def merge_posting (line1, line2):
-  assert(line1[0]==line2[0])
+  """assert(line1[0]==line2[0])
   result = list(set(line1[1]).union(set(line2[1])))
   result.sort()
-  return (line1[0], result)
-"""  i1 = 0
+  return (line1[0], result)"""
+  i1 = 0
   i2 = 0
   merged = []
-  while i1 < len(line1[1]) and i2 < len(line2[1]):
+  while i1 < len(line1[1]) or i2 < len(line2[1]):
     next = 0
-    if(line1[1][i1] < line2[1][i2]):
+    if i1>=len(line1[1]) >= 0:
+        next = line2[1][i2]
+        i2 += 1
+    elif i2>=len(line2[1]) >= 0:
+        next = line1[1][i1]
+        i1 += 1
+    elif(line1[1][i1] < line2[1][i2]):
         next = line1[1][i1]
         i1 += 1
     else:
         next = line2[1][i2]
         i2 += 1
-    if len(merged)>0 and merged[-1] != next:
+    if len(merged)==0 or merged[-1] != next:
         merged.append(next)
-  merged.extend(line1[1][i1:])
-  merged.extend(line2[1][i2:])
-  
-  return (line1[0],merged)"""
+  return (line1[0],merged)
 
 doc_id = -1
 word_id = 0
