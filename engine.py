@@ -90,6 +90,7 @@ class GammaCompressedEngine(Engine):
         buf = ''
         numbits = 0
         for n in arr:
+            n += 1
             # pull bits from end
             s = ''
             b = n
@@ -141,19 +142,17 @@ class GammaCompressedEngine(Engine):
                         l += 1
                     else:
                         if l==0:
-                            numbers.append(1)
+                            numbers.append(0)
                         else:
                             getLength = False
                             n = 1<<l
-                            if l==0:
-                                numbers.append(1)
                 else:
                     if b & 1<<bit:
                         n += 1<<(l-1)
                     l = l-1
                     if(l==0):
                         getLength = True
-                        numbers.append(n)
+                        numbers.append(n-1)
         return numbers
 
 class BasicEngine(Engine):

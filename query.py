@@ -4,7 +4,7 @@ import os, glob, os.path
 import sys
 import re
 #from engine import CompressedEngine as Engine
-from engine import BasicEngine as Engine
+from engine import GammaCompressedEngine as Engine
 
 if len(sys.argv) != 2:
   print >> sys.stderr, 'usage: python query.py index_dir' 
