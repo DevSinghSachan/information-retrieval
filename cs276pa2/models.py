@@ -3,11 +3,22 @@ import sys
 import os.path
 import gzip
 from glob import iglob
+import random
+import itertools
+import marshal
+import math
+from collections import Counter
+
+bi_counts = Counter()
+uni_counts = Counter()
+L = 0.2 3 #lambda
 
 def scan_corpus(training_corpus_loc):
   """
   Scans through the training corpus and counts how many lines of text there are
   """
+  global bi_counts
+  global uni_counts
   for block_fname in iglob( os.path.join( training_corpus_loc, '*.gz' ) ):
     print >> sys.stderr, 'processing dir: ' + block_fname
     with gzip.open( block_fname ) as f:
@@ -15,8 +26,29 @@ def scan_corpus(training_corpus_loc):
       for line in f:
         # remember to remove the trailing \n
         line = line.rstrip()
-        num_lines += 1
-      print >> sys.stderr, 'Number of lines in ' + block_fname + ' is ' + str(num_lines)
+        words = line.split()
+        for word in words:
+          uni_counts[word] += 1
+        for tup in itertools.izip( words[:-1], words[1:] ):
+          bi_counts[tup] += 1
+  return tuple([unicounts, bicounts])
+
+def P_mle_uni(w1):
+  return uni_counts[w1]/len(uni_counts)
+
+def P_mle_bi(w1, w2): # P(w2|w1)
+  return bi_counts[tuple([w1, w2])]/uni_counts[w1]
+
+def P_int_bi(w1, w2): # P(w2|w1)
+  return L*P_mle_uni(w2)+(1-L)*P_mle_bi(w1,w2)
+
+# Q here is a raw sentence
+def log_P(Q):
+  words = Q.rstrip().split()
+  log_p = math.log(P_mle_uni(words[0]))
+  for tup in itertools.izip( words[:-1], words[1:] ):
+    log_p += P_int_bi(tup[0], tup[1])
+  return log_p
 
 def read_edit1s():
   """
@@ -30,4 +62,10 @@ def read_edit1s():
   return edit1s
 
 if __name__ == '__main__':
-  print(sys.argv)
+  if len(sys.argv) != 3:
+    print "Usage: python models.py <training corpus dir> <training edit1s file>"
+    sys.exit()
+  training_corpus_loc = sys.argv[1]
+  edit1s_loc = sys.argv[2]
+  #scan_corpus(training_corpus_loc)
+  print read_edit1s()
