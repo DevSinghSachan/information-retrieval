@@ -81,7 +81,7 @@ def unserialize_data(fname):
 def loadModel():
   global bi_counts
   global uni_counts
-  unicounts, bi_counts = return unserialize_data('model.dat')
+  unicounts, bi_counts = unserialize_data('model.dat')
 
 if __name__ == '__main__':
   if len(sys.argv) != 3:
