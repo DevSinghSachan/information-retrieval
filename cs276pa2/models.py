@@ -11,7 +11,7 @@ from collections import Counter
 
 bi_counts = Counter()
 uni_counts = Counter()
-L = 0.2 3 #lambda
+L = 0.2 #lambda
 
 def scan_corpus(training_corpus_loc):
   """
@@ -31,7 +31,6 @@ def scan_corpus(training_corpus_loc):
           uni_counts[word] += 1
         for tup in itertools.izip( words[:-1], words[1:] ):
           bi_counts[tup] += 1
-  return tuple([unicounts, bicounts])
 
 def P_mle_uni(w1):
   return uni_counts[w1]/len(uni_counts)
@@ -61,11 +60,29 @@ def read_edit1s():
     edit1s = [ line.rstrip().split('\t') for line in f if line.rstrip() ]
   return edit1s
 
+def serialize_data(data, fname):
+  """
+  Writes `data` to a file named `fname`
+  """
+  with open(fname, 'wb') as f:
+    marshal.dump(data, f)
+
+def unserialize_data(fname):
+  """
+  Reads a pickled data structure from a file named `fname` and returns it
+  IMPORTANT: Only call marshal.load( .. ) on a file that was written to using marshal.dump( .. )
+  marshal has a whole bunch of brittle caveats you can take a look at in teh documentation
+  It is faster than everything else by several orders of magnitude though
+  """
+  with open(fname, 'rb') as f:
+    return marshal.load(f)
+
 if __name__ == '__main__':
   if len(sys.argv) != 3:
     print "Usage: python models.py <training corpus dir> <training edit1s file>"
     sys.exit()
   training_corpus_loc = sys.argv[1]
   edit1s_loc = sys.argv[2]
-  #scan_corpus(training_corpus_loc)
-  print read_edit1s()
+  scan_corpus(training_corpus_loc)
+  serialize_data(tuple([uni_counts, bi_counts]), 'model.dat')
+  
