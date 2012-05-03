@@ -75,7 +75,13 @@ def unserialize_data(fname):
   It is faster than everything else by several orders of magnitude though
   """
   with open(fname, 'rb') as f:
+    marshal.load(f)
     return marshal.load(f)
+
+def loadModel():
+  global bi_counts
+  global uni_counts
+  unicounts, bi_counts = return unserialize_data('model.dat')
 
 if __name__ == '__main__':
   if len(sys.argv) != 3:
@@ -84,5 +90,5 @@ if __name__ == '__main__':
   training_corpus_loc = sys.argv[1]
   edit1s_loc = sys.argv[2]
   scan_corpus(training_corpus_loc)
-  serialize_data(tuple([uni_counts, bi_counts]), 'model.dat')
+  serialize_data(tuple([dict(uni_counts), dict(bi_counts)]), 'model.dat')
   
