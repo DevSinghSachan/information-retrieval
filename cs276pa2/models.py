@@ -8,9 +8,15 @@ import itertools
 import marshal
 import math
 from collections import Counter
+from corrector import *
 
 bi_counts = Counter()
 uni_counts = Counter()
+grams = dict()
+word_id = 0
+dictionary = dict()
+
+
 L = 0.2 #lambda
 
 def scan_corpus(training_corpus_loc):
@@ -19,6 +25,8 @@ def scan_corpus(training_corpus_loc):
   """
   global bi_counts
   global uni_counts
+  global grams
+  global word_id
   for block_fname in iglob( os.path.join( training_corpus_loc, '*.gz' ) ):
     print >> sys.stderr, 'processing dir: ' + block_fname
     with gzip.open( block_fname ) as f:
@@ -29,9 +37,18 @@ def scan_corpus(training_corpus_loc):
         words = line.split()
         for word in words:
           uni_counts[word] += 1
+          if not word in dictionary:
+            dictionary[word] = word_id
+            dictionary[word_id] = word
+            word_id += 1
+          for g in kgrams(word, 3):
+            if not g in grams:
+              grams[g] = []
+            grams[g].append(dictionary[word])
         for tup in itertools.izip( words[:-1], words[1:] ):
           bi_counts[tup] += 1
-
+  for k in grams:
+    grams[k].sort()
 def P_mle_uni(w1):
   return uni_counts[w1]/len(uni_counts)
 
@@ -49,7 +66,7 @@ def log_P(Q):
     log_p += P_int_bi(tup[0], tup[1])
   return log_p
 
-def read_edit1s():
+def read_edit1s(edit1s_loc):
   """
   Returns the edit1s data
   It's a list of tuples, structured as [ .. , (misspelled query, correct query), .. ]
@@ -75,13 +92,29 @@ def unserialize_data(fname):
   It is faster than everything else by several orders of magnitude though
   """
   with open(fname, 'rb') as f:
-    marshal.load(f)
     return marshal.load(f)
 
 def loadModel():
   global bi_counts
   global uni_counts
   unicounts, bi_counts = unserialize_data('model.dat')
+
+
+CAND_CUTOFF = 3.0/4
+def find_candidates(word, gram_dict, dictionary):
+  assert(len(word) >= 3)
+  grams = kgrams(word,3)
+  word_counts = Counter()
+  for g in grams:
+    if g in gram_dict:
+      for w in gram_dict[g]:
+        word_counts[w] += 1
+  cands = []
+  for w in word_counts:
+    if word_counts[w] / float(len(grams)) >= CAND_CUTOFF:
+      cands.append(w)
+  return map(lambda w : dictionary[w], cands)
+
 
 if __name__ == '__main__':
   if len(sys.argv) != 3:
@@ -90,5 +123,19 @@ if __name__ == '__main__':
   training_corpus_loc = sys.argv[1]
   edit1s_loc = sys.argv[2]
   scan_corpus(training_corpus_loc)
+  print >> sys.stderr, "reading edits"
+  edits = read_edit1s(edit1s_loc)
+  op_counts = Counter()
+  for e in edits:
+    for char in e[1]:
+      op_counts[char] += 1
+    ops = DamerauLevenshtein(*e)
+    for op in ops:
+      op_counts[op] += 1
+
   serialize_data(tuple([dict(uni_counts), dict(bi_counts)]), 'model.dat')
+  serialize_data(grams, 'grams.dat')
+  serialize_data(dict(op_counts), 'op_counts.dat')
+  serialize_data(dictionary, 'dictionary.dat')
   
+
