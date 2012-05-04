@@ -41,10 +41,11 @@ def scan_corpus(training_corpus_loc):
             dictionary[word] = word_id
             dictionary[word_id] = word
             word_id += 1
-          for g in kgrams(word, 3):
-            if not g in grams:
-              grams[g] = []
-            grams[g].append(dictionary[word])
+            # add this new word to our kgram dictionary
+            for g in kgrams(word, 3):
+              if not g in grams:
+                grams[g] = []
+              grams[g].append(dictionary[word])
         for tup in itertools.izip( words[:-1], words[1:] ):
           bi_counts[tup] += 1
   for k in grams:
@@ -100,7 +101,7 @@ def loadModel():
   unicounts, bi_counts = unserialize_data('model.dat')
 
 
-CAND_CUTOFF = 3.0/4
+CAND_CUTOFF = 1.0/2
 def find_candidates(word, gram_dict, dictionary):
   assert(len(word) >= 3)
   grams = kgrams(word,3)
@@ -109,10 +110,13 @@ def find_candidates(word, gram_dict, dictionary):
     if g in gram_dict:
       for w in gram_dict[g]:
         word_counts[w] += 1
+
   cands = []
   for w in word_counts:
     if word_counts[w] / float(len(grams)) >= CAND_CUTOFF:
-      cands.append(w)
+      if abs(len(dictionary[w]) - len(word)) <= 2:
+        cands.append(w)
+
   return map(lambda w : dictionary[w], cands)
 
 
@@ -123,6 +127,12 @@ if __name__ == '__main__':
   training_corpus_loc = sys.argv[1]
   edit1s_loc = sys.argv[2]
   scan_corpus(training_corpus_loc)
+
+  serialize_data(tuple([dict(uni_counts), dict(bi_counts)]), 'model.dat')
+  serialize_data(grams, 'grams.dat')
+  serialize_data(dictionary, 'dictionary.dat')
+  sys.exit()
+
   print >> sys.stderr, "reading edits"
   edits = read_edit1s(edit1s_loc)
   op_counts = Counter()
@@ -132,10 +142,7 @@ if __name__ == '__main__':
     ops = DamerauLevenshtein(*e)
     for op in ops:
       op_counts[op] += 1
-
-  serialize_data(tuple([dict(uni_counts), dict(bi_counts)]), 'model.dat')
-  serialize_data(grams, 'grams.dat')
   serialize_data(dict(op_counts), 'op_counts.dat')
-  serialize_data(dictionary, 'dictionary.dat')
+
   
 

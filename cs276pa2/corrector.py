@@ -26,8 +26,10 @@ def read_query_data():
   assert( len(queries) == len(gold) and len(gold) == len(google) )
   return (queries, gold, google)
 
+SEP_CHAR = "|"
 def kgrams(word,k):
   grams = []
+  word = (SEP_CHAR * (k-1)) + word + (SEP_CHAR * (k-1)) 
   for i in range(len(word)):
     g = word[i:i+k]
     if len(g) < k:
@@ -90,17 +92,106 @@ def DamerauLevenshtein(str1,str2):
          ops[i,j] = ops[i-1,j-1]
    return ops[(len(str1) -1, len(str2)-1)]
 
+CAND_CUTOFF = 1.0/2
+def find_candidates_kgram(word, gram_dict, dictionary):
+  grams = kgrams(word,3)
+  word_counts = Counter()
+  for g in grams:
+    if g in gram_dict:
+      for w in gram_dict[g]:
+        word_counts[w] += 1
+  cands = []
+  for w in word_counts:
+    if word_counts[w] / float(len(grams)) >= CAND_CUTOFF:
+      if len(DamerauLevenshtein(dictionary[w],word)) <= 2:
+        cands.append(w)
+  return map(lambda w : dictionary[w], cands)
+
+ed_prob = 0.04
+def uniform_prob(w1,w2, ops=[]):
+  ed = len(DamerauLevenshtein(w1,w2))
+  return ed_prob ** (ed + len(ops))
+
+def empirical_prob(w1,w2, ops=[]):
+  return uniform_prob(w1,w2, ops)
+  
+def suggest_word(w, grams, dictionary):
+  return find_candidates_kgram(w, grams, dictionary)
+
+def merge_and_split(q):
+  boundaries = [(q[:i], q[i:]) for i in range(1,len(q))]
+  splits = [a + ' ' + b for a, b in boundaries]
+  merges = [a + b[1:] for a, b in boundaries if b and b[0] == ' ']
+  # get rid of double spaces
+  splits = map(lambda s : s.replace("  "," "), splits)
+  merges = map(lambda s : s.replace("  ", " "), merges)
+  return set(merges)
+
+def merges_and_splits(q):
+  qs = merge_and_split(q)
+  new_qs = set()
+  for q in qs:
+    new_qs = new_qs.union(merge_and_split(q))
+  return new_qs
+
+def find_split(w, dictionary):
+  """iterate over all splits and find ones that yield 2 real words"""
+  splits = [(w[:i], w[i:]) for i in range(1,len(w))]
+  valid_splits = filter(lambda (w1,w2) : w1 in dictionary and w2 in dictionary, splits)
+  valid_phrases = map(lambda (w1,w2) : w1 + " " + w2, valid_splits)
+  return valid_phrases
+
+def flatten_possibilities(arr):
+  """
+  takes an array of sets and takes teh euclidean product
+  of all the elements in each set to get all possible 
+  sentences formed by those candidate sets
+  """
+  poss = []
+  if len(arr) == 1:
+    return arr[0]
+  else:
+    for prefix in arr[0]:
+      for suffix in flatten_possibilities(arr[1:]):
+        poss.append(prefix + " " + suffix)
+  return poss
+    
 if __name__ == '__main__':
   if len(sys.argv) != 4:
     print "Usage: ./runcorrector.sh <dev|test> <uniform|empirical> <queries file>"
     sys.exit()
   mode = sys.argv[1]
-  prob = sys.argv[2]
+  prob_mode = sys.argv[2]
   queries_file = sys.argv[3]
   queries, gold, google = read_query_data()
   uni_counts, bi_counts = unserialize_data('model.dat')
   grams = unserialize_data('grams.dat')
   op_counts = unserialize_data('op_counts.dat')
-  
   dictionary = unserialize_data('dictionary.dat')
-  print find_candidates("hellp", grams, dictionary)
+  
+  if prob_mode == 'uniform':
+    prob = uniform_prob
+  else:
+    prob = empirical_prob
+  match = 0
+  miss = 0  
+  for q_idx, q in enumerate(queries):
+    all_candidates = set()
+    modified_queries = merge_and_split(q)
+    modified_queries.add(q)
+    for mod_q in modified_queries:
+      corrections = []
+      ws = mod_q.split(' ')
+      for w_idx, w in enumerate(ws):
+        corrections.append(set([w]))
+        if not w in dictionary:
+          suggested_ws = suggest_word(w, grams, dictionary)
+          corrections[-1] = corrections[-1].union(suggested_ws)   
+          corrections[-1] = corrections[-1].union(find_split(w, dictionary))
+      # flatten queries  
+      all_candidates = all_candidates.union(flatten_possibilities(corrections))
+    print q
+    print gold[q_idx]
+    print all_candidates
+            
+
