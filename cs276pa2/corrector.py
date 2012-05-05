@@ -1,11 +1,11 @@
 import sys
 from models import *
+import norvig
 import models
 
 queries_loc = 'data/queries.txt'
 gold_loc = 'data/gold.txt'
 google_loc = 'data/google.txt'
-
 alphabet = "abcdefghijklmnopqrstuvwxyz0123546789&$+_' "
 
 def read_query_data():
@@ -92,8 +92,10 @@ def DamerauLevenshtein(str1,str2):
          ops[i,j] = ops[i-1,j-1]
    return ops[(len(str1) -1, len(str2)-1)]
 
-CAND_CUTOFF = 2.0/3
+CAND_CUTOFF = 5.0/10
 def find_candidates_kgram(word, gram_dict, dictionary):
+  if len(word) <= 3:
+    return simple_single_word_cand_gen(word, dictionary)
   grams = kgrams(word,3)
   word_counts = Counter()
   for g in grams:
@@ -103,28 +105,30 @@ def find_candidates_kgram(word, gram_dict, dictionary):
   cands = []
   for w in word_counts:
     if word_counts[w] / float(len(grams)) >= CAND_CUTOFF:
-      if len(DamerauLevenshtein(dictionary[w],word)) <= 2:
-        cands.append(w)
-
+      if abs(len(dictionary[w]) - len(word)) <= 2:
+        if len(DamerauLevenshtein(dictionary[w],word)) <= 2:
+          cands.append(w)
   return map(lambda w : dictionary[w], cands)
 
-ed_prob = 0.06
+
+PRQ_EQ = math.log(0.92)
+ed_prob = 0.07
 def uniform_prob(w1,w2, ops=[], op_counts=[]):
   ed = len(DamerauLevenshtein(w1,w2))
-  return math.log(ed_prob ** (ed + len(ops)))
+  if len(ops) != 0:
+    return math.log(ed_prob ** (ed + len(ops)))
+  else:
+    return PRQ_EQ
 
 def empirical_prob(w1,w2, ops=[], op_counts=[]):
-  prob = 0
-  #print "---"
-  #print w1
-  #print w2
-  for op in ops:
-    #print op
-    #print op_counts[op]
-    #print op_counts[op[1]]
-    #print  (op_counts[op]+1) / float(op_counts[op[1]] + len(op_counts))
-    prob += math.log( (op_counts[op]+1) / float(op_counts[op[1]] + len(op_counts)))
-  return prob
+  if len(ops) > 0:
+    prob = 0
+    for op in ops:
+      # make sure to do add 1 smoothing
+      prob += math.log( (op_counts[op]+1) / float(op_counts[op[1]] + len(op_counts)))
+    return prob
+  else:
+    return PRQ_EQ
   
 def suggest_word(w, grams, dictionary):
   return find_candidates_kgram(w, grams, dictionary)
@@ -147,6 +151,17 @@ def find_split(w, dictionary):
   valid_phrases = map(lambda (w1,w2) : w1 + " " + w2, valid_splits)
   return valid_phrases
 
+def simple_query_cand_gen(q, dictionary):
+  ws = q.split()
+  cands = []
+  for w in ws:
+    cands.append(simple_word_cand_gen(w,dictionary))
+  return flatten_possibilities(cands)
+def simple_word_cand_gen(w, dictionary):
+  return set(e2 for e1 in norvig.edits1(w) for e2 in norvig.edits1(e1) if e2 in dictionary)
+def simple_single_word_cand_gen(w, dictionary):
+  return set(e1 for e1 in norvig.edits1(w) if e1 in dictionary)
+
 def flatten_possibilities(arr):
   """
   takes an array of sets and takes teh euclidean product
@@ -162,9 +177,10 @@ def flatten_possibilities(arr):
         poss.append(prefix + " " + suffix)
   return poss
 
+MU = 1.1
 def get_q_prob(candidate, q):  
   diff = DamerauLevenshtein(candidate, q)
-  return prob(candidate, q, diff, op_counts) + log_P(candidate)            
+  return prob(candidate, q, diff, op_counts) + log_P(candidate)*MU
 
 
 if __name__ == '__main__':
@@ -176,7 +192,6 @@ if __name__ == '__main__':
   queries_file = sys.argv[3]
   queries, gold, google = read_query_data()
   uni_counts, bi_counts = unserialize_data('model.dat')
-
   models.uni_counts = uni_counts
   models.bi_counts = Counter(bi_counts)
 
@@ -192,7 +207,13 @@ if __name__ == '__main__':
     sys.exit()
   match = 0
   miss = 0  
-  #queries = ["forign affairs reporter the age"]
+
+  queries = []
+  with open(queries_file) as f:
+    for line in f:
+      queries.append(line.rstrip())
+
+  #queries = ["tasdfadfasdfa dfnivesity"]
   for q_idx, q in enumerate(queries):
     all_candidates = set()
     modified_queries = merges(q)
@@ -208,28 +229,38 @@ if __name__ == '__main__':
           corrections[-1] = corrections[-1].union(find_split(w, dictionary))
         else:
           corrections[-1].add(w)
-          suggested_ws = suggest_word(w, grams, dictionary)
-          if uni_counts[w] / float(uni_counts["#TOTAL#"]) < 1e-4:           
+          # let's expand improabable words
+          #print w
+          #print uni_counts[w] / float(uni_counts["#TOTAL#"]) 
+          if P_mle_uni(w) < 5e-6:           
+            suggested_ws = suggest_word(w, grams, dictionary)
             corrections[-1] = corrections[-1].union(suggested_ws)
       # flatten queries
       all_candidates = all_candidates.union(flatten_possibilities(corrections))
-
-      #all_candidates = set(filter(lambda c : len(DamerauLevenshtein(q, c)) <= 2 , all_candidates))
-    print q
-    print gold[q_idx]
-    print google[q_idx]
+      all_candidates = set(filter(lambda c : len(DamerauLevenshtein(q, c)) <= 2 , all_candidates))
+    if mode == 'dev':
+      print >> sys.stderr, q
+      print >> sys.stderr, gold[q_idx]
+      print >> sys.stderr, google[q_idx]
     all_candidates = list(all_candidates)
-    candidate_probabilities = map(lambda c : get_q_prob(c,q), all_candidates)
-    #print zip(all_candidates,candidate_probabilities)
 
-    best_cand_idx  = candidate_probabilities.index(max(candidate_probabilities))
-    best_correction = all_candidates[best_cand_idx]
-    print best_correction
-    print max(candidate_probabilities)
-    if best_correction == gold[q_idx]:
-      match +=1 
+    #print zip(all_candidates,candidate_probabilities)
+    print >> sys.stderr, len(all_candidates)
+    print >> sys.stderr, float(q_idx)/len(queries)
+    best_correction = ""
+    if len(all_candidates) == 0:
+      print >> sys.stderr, "error: no answer found"
+      best_correction = q
     else:
-      miss += 1
-    print match
-    print miss
+      candidate_probabilities = map(lambda c : get_q_prob(c,q), all_candidates)
+      best_cand_idx  = candidate_probabilities.index(max(candidate_probabilities))
+      best_correction = all_candidates[best_cand_idx]
+    print best_correction
+    if mode == 'dev':
+      if best_correction == gold[q_idx]:
+        match +=1 
+      else:
+        miss += 1
+      print >> sys.stderr, match
+      print >> sys.stderr,miss
 

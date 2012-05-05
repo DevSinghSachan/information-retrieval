@@ -17,7 +17,7 @@ word_id = 0
 dictionary = dict()
 
 
-L = 0.2 #lambda
+L = 0.1 #lambda
 
 def scan_corpus(training_corpus_loc):
   """
@@ -53,7 +53,10 @@ def scan_corpus(training_corpus_loc):
     grams[k].sort()
 def P_mle_uni(w1):
   #print w1,"mle_uni"
-  mle_uni = uni_counts[w1]/float(uni_counts["#TOTAL#"])
+  if w1 in uni_counts:
+    mle_uni = uni_counts[w1]/float(uni_counts["#TOTAL#"])
+  else:
+    mle_uni = 0
   #print mle_uni
   return mle_uni
 
@@ -74,7 +77,7 @@ def log_P(Q):
   words = Q.rstrip().split()
   log_p = math.log(P_mle_uni(words[0]))
   for tup in itertools.izip( words[:-1], words[1:] ):
-    log_p += P_int_bi(tup[0], tup[1])
+    log_p += math.log(P_int_bi(tup[0], tup[1]))
   return log_p
 
 def read_edit1s(edit1s_loc):
@@ -109,25 +112,6 @@ def loadModel():
   global bi_counts
   global uni_counts
   unicounts, bi_counts = unserialize_data('model.dat')
-
-
-CAND_CUTOFF = 1.0/2
-def find_candidates(word, gram_dict, dictionary):
-  assert(len(word) >= 3)
-  grams = kgrams(word,3)
-  word_counts = Counter()
-  for g in grams:
-    if g in gram_dict:
-      for w in gram_dict[g]:
-        word_counts[w] += 1
-
-  cands = []
-  for w in word_counts:
-    if word_counts[w] / float(len(grams)) >= CAND_CUTOFF:
-      if abs(len(dictionary[w]) - len(word)) <= 2:
-        cands.append(w)
-
-  return map(lambda w : dictionary[w], cands)
 
 
 if __name__ == '__main__':
