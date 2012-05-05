@@ -36,6 +36,7 @@ def scan_corpus(training_corpus_loc):
         line = line.rstrip()
         words = line.split()
         for word in words:
+          uni_counts["#TOTAL#"] += 1
           uni_counts[word] += 1
           if not word in dictionary:
             dictionary[word] = word_id
@@ -46,18 +47,27 @@ def scan_corpus(training_corpus_loc):
               if not g in grams:
                 grams[g] = []
               grams[g].append(dictionary[word])
-        for tup in itertools.izip( words[:-1], words[1:] ):
+        for tup in itertools.izip( words[:-1], words[1:]):
           bi_counts[tup] += 1
   for k in grams:
     grams[k].sort()
 def P_mle_uni(w1):
-  return uni_counts[w1]/len(uni_counts)
+  #print w1,"mle_uni"
+  mle_uni = uni_counts[w1]/float(uni_counts["#TOTAL#"])
+  #print mle_uni
+  return mle_uni
 
 def P_mle_bi(w1, w2): # P(w2|w1)
-  return bi_counts[tuple([w1, w2])]/uni_counts[w1]
+  mle_bi = bi_counts[tuple([w1, w2])]/float(uni_counts[w1])
+  #print w1,w2,"mle_bi"
+  #print mle_bi
+  return mle_bi
 
 def P_int_bi(w1, w2): # P(w2|w1)
-  return L*P_mle_uni(w2)+(1-L)*P_mle_bi(w1,w2)
+  int_bi =  L*P_mle_uni(w2)+(1-L)*P_mle_bi(w1,w2)
+  #print w1,w2,"int_bi"
+  #print int_bi
+  return int_bi
 
 # Q here is a raw sentence
 def log_P(Q):
@@ -131,15 +141,16 @@ if __name__ == '__main__':
   serialize_data(tuple([dict(uni_counts), dict(bi_counts)]), 'model.dat')
   serialize_data(grams, 'grams.dat')
   serialize_data(dictionary, 'dictionary.dat')
-  sys.exit()
-
+  #sys.exit()
   print >> sys.stderr, "reading edits"
   edits = read_edit1s(edit1s_loc)
   op_counts = Counter()
   for e in edits:
+    # we use 0 to represent the null at the start of the string
+    op_counts[0] += 1
     for char in e[1]:
       op_counts[char] += 1
-    ops = DamerauLevenshtein(*e)
+    ops = DamerauLevenshtein(e[1],e[0])
     for op in ops:
       op_counts[op] += 1
   serialize_data(dict(op_counts), 'op_counts.dat')

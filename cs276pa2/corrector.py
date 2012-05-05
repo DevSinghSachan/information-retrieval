@@ -1,5 +1,6 @@
 import sys
 from models import *
+import models
 
 queries_loc = 'data/queries.txt'
 gold_loc = 'data/gold.txt'
@@ -72,27 +73,26 @@ def DamerauLevenshtein(str1,str2):
          trans_cost = 1000000
        min_cost = min(del_cost, ins_cost, subs_cost, trans_cost)
        d[i,j] = min_cost
-
        # we need to recover the moves we made
        if del_cost == min_cost:
          if i == 0:
            ops[i,j] = ops[i-1,j] + [('d',0,str1[i])]
          else:
            ops[i,j] = ops[i-1,j] + [('d',str1[i-1],str1[i])]           
+       elif subs_cost == min_cost and cost > 0:
+         ops[i,j] = ops[i-1,j-1] + [('s',str1[i],str2[j])]
        elif ins_cost == min_cost:
          if j == 0:
            ops[i,j] = ops[i,j-1] + [('i',0,str2[j])]
          else:
-           ops[i,j] = ops[i,j-1] + [('i',str1[i], str2[j])]
-       elif subs_cost == min_cost and cost > 0:
-         ops[i,j] = ops[i-1,j-1] + [('s',str2[j],str1[i])]
+           ops[i,j] = ops[i,j-1] + [('i', str1[i], str2[j])]
        elif trans_cost == min_cost and cost > 0:
-         ops[i,j] = ops[i-2,j-2] + [('t',str1[i],str1[i-1])]
+         ops[i,j] = ops[i-2,j-2] + [('t',str1[i-1],str1[i])]
        else:
          ops[i,j] = ops[i-1,j-1]
    return ops[(len(str1) -1, len(str2)-1)]
 
-CAND_CUTOFF = 1.0/2
+CAND_CUTOFF = 2.0/3
 def find_candidates_kgram(word, gram_dict, dictionary):
   grams = kgrams(word,3)
   word_counts = Counter()
@@ -105,34 +105,40 @@ def find_candidates_kgram(word, gram_dict, dictionary):
     if word_counts[w] / float(len(grams)) >= CAND_CUTOFF:
       if len(DamerauLevenshtein(dictionary[w],word)) <= 2:
         cands.append(w)
+
   return map(lambda w : dictionary[w], cands)
 
-ed_prob = 0.04
-def uniform_prob(w1,w2, ops=[]):
+ed_prob = 0.06
+def uniform_prob(w1,w2, ops=[], op_counts=[]):
   ed = len(DamerauLevenshtein(w1,w2))
-  return ed_prob ** (ed + len(ops))
+  return math.log(ed_prob ** (ed + len(ops)))
 
-def empirical_prob(w1,w2, ops=[]):
-  return uniform_prob(w1,w2, ops)
+def empirical_prob(w1,w2, ops=[], op_counts=[]):
+  prob = 0
+  #print "---"
+  #print w1
+  #print w2
+  for op in ops:
+    #print op
+    #print op_counts[op]
+    #print op_counts[op[1]]
+    #print  (op_counts[op]+1) / float(op_counts[op[1]] + len(op_counts))
+    prob += math.log( (op_counts[op]+1) / float(op_counts[op[1]] + len(op_counts)))
+  return prob
   
 def suggest_word(w, grams, dictionary):
   return find_candidates_kgram(w, grams, dictionary)
 
-def merge_and_split(q):
+def merges(q):
+  """ 
+  the query w/ adjacent words merged at every 
+  combination of spaces
+  """
   boundaries = [(q[:i], q[i:]) for i in range(1,len(q))]
-  splits = [a + ' ' + b for a, b in boundaries]
   merges = [a + b[1:] for a, b in boundaries if b and b[0] == ' ']
   # get rid of double spaces
-  splits = map(lambda s : s.replace("  "," "), splits)
   merges = map(lambda s : s.replace("  ", " "), merges)
   return set(merges)
-
-def merges_and_splits(q):
-  qs = merge_and_split(q)
-  new_qs = set()
-  for q in qs:
-    new_qs = new_qs.union(merge_and_split(q))
-  return new_qs
 
 def find_split(w, dictionary):
   """iterate over all splits and find ones that yield 2 real words"""
@@ -145,7 +151,7 @@ def flatten_possibilities(arr):
   """
   takes an array of sets and takes teh euclidean product
   of all the elements in each set to get all possible 
-  sentences formed by those candidate sets
+  may also be of interest  sentences formed by those candidate sets
   """
   poss = []
   if len(arr) == 1:
@@ -155,7 +161,12 @@ def flatten_possibilities(arr):
       for suffix in flatten_possibilities(arr[1:]):
         poss.append(prefix + " " + suffix)
   return poss
-    
+
+def get_q_prob(candidate, q):  
+  diff = DamerauLevenshtein(candidate, q)
+  return prob(candidate, q, diff, op_counts) + log_P(candidate)            
+
+
 if __name__ == '__main__':
   if len(sys.argv) != 4:
     print "Usage: ./runcorrector.sh <dev|test> <uniform|empirical> <queries file>"
@@ -165,33 +176,60 @@ if __name__ == '__main__':
   queries_file = sys.argv[3]
   queries, gold, google = read_query_data()
   uni_counts, bi_counts = unserialize_data('model.dat')
+
+  models.uni_counts = uni_counts
+  models.bi_counts = Counter(bi_counts)
+
   grams = unserialize_data('grams.dat')
-  op_counts = unserialize_data('op_counts.dat')
+  op_counts = Counter(unserialize_data('op_counts.dat'))
   dictionary = unserialize_data('dictionary.dat')
-  
   if prob_mode == 'uniform':
     prob = uniform_prob
-  else:
+  elif prob_mode == 'empirical':
     prob = empirical_prob
+  else:
+    print "Error: invalid probability mode"
+    sys.exit()
   match = 0
   miss = 0  
+  #queries = ["forign affairs reporter the age"]
   for q_idx, q in enumerate(queries):
     all_candidates = set()
-    modified_queries = merge_and_split(q)
+    modified_queries = merges(q)
     modified_queries.add(q)
     for mod_q in modified_queries:
       corrections = []
       ws = mod_q.split(' ')
       for w_idx, w in enumerate(ws):
-        corrections.append(set([w]))
+        corrections.append(set())
         if not w in dictionary:
           suggested_ws = suggest_word(w, grams, dictionary)
           corrections[-1] = corrections[-1].union(suggested_ws)   
           corrections[-1] = corrections[-1].union(find_split(w, dictionary))
-      # flatten queries  
+        else:
+          corrections[-1].add(w)
+          suggested_ws = suggest_word(w, grams, dictionary)
+          if uni_counts[w] / float(uni_counts["#TOTAL#"]) < 1e-4:           
+            corrections[-1] = corrections[-1].union(suggested_ws)
+      # flatten queries
       all_candidates = all_candidates.union(flatten_possibilities(corrections))
+
+      #all_candidates = set(filter(lambda c : len(DamerauLevenshtein(q, c)) <= 2 , all_candidates))
     print q
     print gold[q_idx]
-    print all_candidates
-            
+    print google[q_idx]
+    all_candidates = list(all_candidates)
+    candidate_probabilities = map(lambda c : get_q_prob(c,q), all_candidates)
+    #print zip(all_candidates,candidate_probabilities)
+
+    best_cand_idx  = candidate_probabilities.index(max(candidate_probabilities))
+    best_correction = all_candidates[best_cand_idx]
+    print best_correction
+    print max(candidate_probabilities)
+    if best_correction == gold[q_idx]:
+      match +=1 
+    else:
+      miss += 1
+    print match
+    print miss
 
