@@ -105,6 +105,26 @@ class URL():
             if hit[0] in dictionary:
                 term_counts[hit[0]] += len(hit) - 1
         return (term_counts, self.body_length)
+    def minimum_title_window(self, query):
+        return self.minimum_window(query, self.title)
+    def minimum_anchor_window(self, query):
+        minimum_window_size = float("inf")
+        for a in self.anchor_text:
+            minimum_window_size = min(minimum_window_size, self.minimum_window(query, a))
+        return minimum_window_size
+
+    def minimum_window(self, query, text):
+        query = set(query.split())
+        text = text.split()
+        if not all(map( lambda w : w in text, query)):
+            return float("inf")
+        window = float("inf")
+        for i in range(len(text)):
+            for j in range(i + 1,len(text) + 1):
+                if all(map( lambda w : w in text[i:j], query)):                    
+                    window = min(window, j - i )
+        return window
+
     def minimum_body_window(self, query):
         query = set(query.split())
         locs = []
