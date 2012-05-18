@@ -1,8 +1,13 @@
 from util import *
-def cosine_sim(q, weights, dictionary, corpus):
+def bm25_sim(q, weights, dictionary, corpus):
     pq = l1_normalize(parse_query(q.query_terms, dictionary, corpus))
     scored_urls = []
     for url in q.query_results:
+        print "For: " + url.title
+        print url.prepare_anchors(dictionary)
+        print url.prepare_title(dictionary)
+        print url.prepare_body(dictionary)
+        print "\n\n\n"
         anchor_vector = normalized_raw_term_scores(url.prepare_anchors(dictionary), dictionary)
         body_vector = sublinear_term_scores(url.prepare_body(dictionary), dictionary)
         title_vector = normalized_raw_term_scores(url.prepare_title(dictionary), dictionary)
@@ -22,7 +27,7 @@ if __name__ == "__main__":
     queries = read_train_data()
     corpus = read_corpus()
     for q in queries:
-        scored_urls = cosine_sim(q, weights, dictionary, corpus)
+        scored_urls = bm25_sim(q, weights, dictionary, corpus)
         # output the urls in order
         print "query: " + q.query_terms
         scored_urls.sort(reverse=True)
