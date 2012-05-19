@@ -31,9 +31,9 @@ def bm25_sim(q, weights, dictionary, corpus):
         scored_urls.append((score, url))
     return scored_urls
 
-Wf = [.2, .3, .5] # weights for [Title,Body,Anchor]
-Bf = [.75, .75, .75] # Some arbitrary constant for [Title,Body,Anchor]
-K1 = 25 # another arbitrary constant
+Wf = [6, 12, 16] # weights for [Title,Body,Anchor]
+Bf = [.3, .5, .9] # Some arbitrary constant for [Title,Body,Anchor]
+K1 = 15 # another arbitrary constant
 weights = Wf+Bf+[K1]
 
 if __name__ == "__main__":
