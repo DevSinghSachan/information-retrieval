@@ -18,17 +18,21 @@ def read_dictionary(filename='AllQueryTerms'):
 def read_corpus(glob_path = 'data/*/*'):
     term_counts = Counter()
     doc_counts = 0
+    length = 0
     for filename in glob(glob_path):
         doc_words = set()
         with open(filename,'r') as f:
             doc_counts += 1
             l = f.readline().rstrip()
             for t in l.split():
+                length += 1
                 if t not in doc_words:
                     term_counts[t] += 1
                     doc_words.add(t)
                 
     term_counts["#TOTAL#"] = doc_counts
+    term_counts["#AVGLEN"] = float(length)/doc_counts
+    
     return term_counts
 
 def parse_query(query, dictionary, corpus):
