@@ -1,4 +1,5 @@
 from util import *
+import sys
 def cosine_sim(q, weights, dictionary, corpus):
     pq = l1_normalize(parse_query(q.query_terms, dictionary, corpus))
     scored_urls = []
@@ -17,9 +18,10 @@ def cosine_sim(q, weights, dictionary, corpus):
         scored_urls.append((score, url))
     return scored_urls
 if __name__ == "__main__":
+    data = sys.argv[1]
     weights = [0.50, 0.30, 0.20]
     dictionary = read_dictionary()
-    queries = read_train_data()
+    queries = read_train_data(data)
     corpus = read_corpus()
     for q in queries:
         scored_urls = cosine_sim(q, weights, dictionary, corpus)

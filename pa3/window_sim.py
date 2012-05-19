@@ -1,12 +1,13 @@
 from util import *
 from cosine_sim import cosine_sim
-
+import sys
 if __name__ == "__main__":
     cosine_sim_weights = [0.50, 0.30, 0.20]
     window_weight = 100
     window_function = (lambda v : 1.0 / v)
     dictionary = read_dictionary()
-    queries = read_train_data()
+    data = sys.argv[1]
+    queries = read_train_data(data)
     corpus = read_corpus()
     for q in queries:
         scored_urls = cosine_sim(q, cosine_sim_weights, dictionary, corpus)
