@@ -31,8 +31,7 @@ def read_corpus(glob_path = 'data/*/*'):
                     doc_words.add(t)
                 
     term_counts["#TOTAL#"] = doc_counts
-    term_counts["#AVGLEN"] = float(length)/doc_counts
-    
+    term_counts["#AVGLEN"] = float(length)/doc_counts    
     return term_counts
 
 def parse_query(query, dictionary, corpus):
