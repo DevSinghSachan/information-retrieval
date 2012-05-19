@@ -3,7 +3,7 @@ from cosine_sim import cosine_sim
 
 if __name__ == "__main__":
     cosine_sim_weights = [0.50, 0.30, 0.20]
-    window_weight = 5
+    window_weight = 100
     window_function = (lambda v : 1.0 / v)
     dictionary = read_dictionary()
     queries = read_train_data()
@@ -18,8 +18,10 @@ if __name__ == "__main__":
             min_dist = min(min_dist, u.minimum_title_window(q.query_terms))
             min_dist = min(min_dist, u.minimum_anchor_window(q.query_terms))
             min_dist -= len(q.query_terms.split())
+            # 1/0 isn't a thing
             min_dist += 1
-            B = max(1.0, window_function(min_dist) * window_weight)
+            # maps it in the range [B,1]
+            B = 1.0 + window_function(min_dist) * (window_weight - 1)
             boosted_urls.append((s * B, u))
         boosted_urls.sort(reverse=True)
         for (s,u) in boosted_urls:
