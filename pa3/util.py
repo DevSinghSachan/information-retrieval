@@ -24,8 +24,8 @@ def read_corpus(glob_path = 'data/*/*'):
         with open(filename,'r') as f:
             doc_counts += 1
             l = f.readline().rstrip()
+            length += len(l.split())
             for t in l.split():
-                length += 1
                 if t not in doc_words:
                     term_counts[t] += 1
                     doc_words.add(t)

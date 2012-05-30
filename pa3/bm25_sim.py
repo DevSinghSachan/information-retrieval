@@ -1,13 +1,8 @@
 from util import *
+
 def bm25_sim(q, weights, dictionary, corpus):
     idf = parse_query(q.query_terms, dictionary, corpus)
     scored_urls = []
-    l_f = [0] * 3
-    for url in q.query_results:
-        l_f[2] += url.prepare_anchors(dictionary)[1]
-        l_f[0] += url.prepare_title(dictionary)[1]
-    l_f[1] = corpus["#AVGLEN"]
-    l_f = [float(x)/len(q.query_results) for x in l_f]
     for url in q.query_results:
         tf = [0]*3
         l_df = [0] * 3
@@ -21,8 +16,11 @@ def bm25_sim(q, weights, dictionary, corpus):
         for term in q.query_terms.split():
             w_td[term] = 0
             for f in range(2):
+                lf = l_f[f]
+                if(f == 2):
+                    lf *= len(url.anchor_counts)
                 if l_f[f] != 0:
-                    ftf[f][term] = tf[f][term]/(1+Bf[f]*(l_df[f]/l_f[f]-1))
+                    ftf[f][term] = tf[f][term]/(1+Bf[f]*(l_df[f]/lf-1))
                 else:
                     ftf[f][term] = 0
                 w_td[term] += Wf[f]*ftf[f][term]
@@ -33,13 +31,26 @@ def bm25_sim(q, weights, dictionary, corpus):
 
 Wf = [6, 12, 16] # weights for [Title,Body,Anchor]
 Bf = [.3, .5, .9] # Some arbitrary constant for [Title,Body,Anchor]
-K1 = 15 # another arbitrary constant
+K1 = 60 # another arbitrary constant
 weights = Wf+Bf+[K1]
 
 if __name__ == "__main__":
     dictionary = read_dictionary()
     queries = read_train_data()
     corpus = read_corpus()
+    l_f = [0] * 3
+    num_anchors = 0
+    num_titles = 0
+    for q in queries:
+        for url in q.query_results:
+            for a in url.anchor_text:
+                l_f[2] += len(a.split())
+            num_anchors += len(url.anchor_counts)
+            l_f[0] += url.prepare_title(dictionary)[1]
+        num_titles += len(q.query_results)
+    l_f[0] /= float(num_titles)
+    l_f[1] = corpus["#AVGLEN"]
+    l_f[2] /= float(num_anchors)
     for q in queries:
         scored_urls = bm25_sim(q, weights, dictionary, corpus)
         # output the urls in order
