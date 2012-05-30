@@ -29,14 +29,18 @@ def bm25_sim(q, weights, dictionary, corpus):
         scored_urls.append((score, url))
     return scored_urls
 
+
 Wf = [6, 12, 16] # weights for [Title,Body,Anchor]
 Bf = [.3, .5, .9] # Some arbitrary constant for [Title,Body,Anchor]
 K1 = 60 # another arbitrary constant
 weights = Wf+Bf+[K1]
 
+
+import sys
 if __name__ == "__main__":
     dictionary = read_dictionary()
-    queries = read_train_data()
+    data = sys.argv[1]
+    queries = read_train_data(data)
     corpus = read_corpus()
     l_f = [0] * 3
     num_anchors = 0
