@@ -30,7 +30,7 @@ def binomial(mi):
   # count of words in each class
   class_words = dict()  
   # set of all words
-  dictionary = set()
+  dictionaries = dict()
   # set of all classes
   classes = set()
   for m in mi:
@@ -41,7 +41,9 @@ def binomial(mi):
       class_words[groupnum] = Counter()
     doc = counter_add(m.subject, m.body)
     for w in doc:
-      dictionary.add(w)
+      if not (groupnum in dictionaries):
+        dictionaries[groupnum] = set()
+      dictionaries[groupnum].add(w)
       class_words[groupnum][w] += 1
   # ensures we print the first $X of each class
   print_counts = Counter()
@@ -55,13 +57,13 @@ def binomial(mi):
   for m in mi:
     groupnum = m.newsgroupnum
     if print_counts[groupnum] >= 20:
-      pass
+      continue
     scores = []
     for c in classes:
       prob = 0
       prob += priors[c]
-      for term in dictionary:
-        term_prob = (class_words[c][term] + 1)/ (float(class_counts[c]) + len(dictionary))
+      for term in dictionaries[groupnum]:
+        term_prob = (class_words[c][term] + 1)/ (float(class_counts[c]) + len(dictionaries[groupnum]))
         if not (term in m.subject or term in m.body):
           term_prob = 1 - term_prob
         prob += log(term_prob)
