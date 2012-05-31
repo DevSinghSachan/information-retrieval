@@ -1,15 +1,80 @@
-
 from __future__ import print_function
-
+from math import log
+from itertools import islice
 import sys
 
 from collections import Counter
 from message_iterators import MessageIterator
 from heapq import *
 
-def binomial(mi):
-  pass
+def counter_add(c1, c2):
+  c = Counter()
+  for w in c1:
+    c[w] += c1[w]
+  for w in c2:
+    c[w] += c2[w]
+  return c
 
+def prior(class_counts, classnum):
+  doc_count = 0
+  for class_num in class_counts:
+    doc_count += class_counts[class_num]
+  # we assume that all docs belong to one of the classes
+  # thus no smoothing is needed
+  return class_counts[classnum] / float(doc_count)
+
+
+def binomial(mi):
+  # how many docs in each class
+  class_counts = Counter()
+  # count of words in each class
+  class_words = dict()  
+  # set of all words
+  dictionary = set()
+  # set of all classes
+  classes = set()
+  for m in mi:
+    groupnum = m.newsgroupnum
+    classes.add(groupnum)
+    class_counts[groupnum] += 1
+    if not groupnum in class_words:
+      class_words[groupnum] = Counter()
+    doc = counter_add(m.subject, m.body)
+    for w in doc:
+      dictionary.add(w)
+      class_words[groupnum][w] += 1
+  # ensures we print the first $X of each class
+  print_counts = Counter()
+  # used for accuracy computation
+  corrects = 0
+  trials = 0
+  # prior probabilities of each class
+  priors = dict()
+  for c in classes:
+    priors[c] = log(prior(class_counts, c))    
+  for m in mi:
+    groupnum = m.newsgroupnum
+    if print_counts[groupnum] >= 20:
+      pass
+    scores = []
+    for c in classes:
+      prob = 0
+      prob += priors[c]
+      for term in dictionary:
+        term_prob = (class_words[c][term] + 1)/ (float(class_counts[c]) + len(dictionary))
+        if not (term in m.subject or term in m.body):
+          term_prob = 1 - term_prob
+        prob += log(term_prob)
+      scores.append((prob,c))
+    print("\t".join(map(lambda (prob,c) : str(prob), scores)))
+    print_counts[groupnum] += 1
+    predicted_class = max(scores)[1]
+    if predicted_class == groupnum:
+      corrects += 1
+    trials += 1
+    print("actual class : " + str(groupnum) ,file=sys.stderr)
+    print("predicted class : " + str(predicted_class) ,file=sys.stderr)
+    print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)
 def binomial_chi2(mi):
   # Create index by category
   counts = [0]*20
