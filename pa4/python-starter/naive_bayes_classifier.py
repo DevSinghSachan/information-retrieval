@@ -132,7 +132,7 @@ def multinomial(mi):
       dictionary[word] = 1
       counts[message.newsgroupnum][word] += words[word]
       #totals[word] += words[word]
-  
+  output = ['']*20
   # Perform classification
   # ensures we print the first $X of each class
   print_counts = Counter()
@@ -158,7 +158,7 @@ def multinomial(mi):
         term_prob = words[word]*(counts[c][word]+1)/float(numDocs[c]+len(dictionary))  # Need smoothing?
         prob += log(term_prob)
       scores.append((prob,c))
-    print("\t".join(map(lambda (prob,c) : str(prob), scores)))
+    #print("\t".join(map(lambda (prob,c) : str(prob), scores)))
     print_counts[groupnum] += 1
     predicted_class = max(scores)[1]
     if predicted_class == groupnum:
@@ -167,6 +167,9 @@ def multinomial(mi):
     print("actual class : " + str(groupnum) ,file=sys.stderr)
     print("predicted class : " + str(predicted_class) ,file=sys.stderr)
     print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)
+    output[groupnum] += str(predicted_class)+"\t"
+  for i in range(len(output)):
+    print(output[i][:-1])
 def twcnb(mi):
   pass
 
