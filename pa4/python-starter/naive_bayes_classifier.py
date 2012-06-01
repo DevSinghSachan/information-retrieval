@@ -88,12 +88,10 @@ def binomial_chi2(mi):
     counts[i] = Counter()
   for message in mi:
     numDocs[message.newsgroupnum] += 1
-    for word in message.body:
-      counts[message.newsgroupnum][word] += 1#message.body[word]
-      totals[word] += 1#message.body[word]
-    #for word in message.subject:
-    #  counts[message.newsgroupnum][word] += 1#message.subject[word]
-    #  totals[word] += 1#message.subject[word]
+    doc = counter_add(m.subject, m.body)
+    for word in doc:
+      counts[message.newsgroupnum][word] += 1
+      totals[word] += 1
   # Run chi-squared for each group
   chosenwords = [0]*20
   for i in range(20):
@@ -234,6 +232,58 @@ def cnb(mi):
   advanced_nb(mi, cnb_filter)
 def wcnb(mi):
   advanced_nb(mi, lambda cw : wcnb_filter(cnb_filter(cw)))
+  dictionary = dict()
+  counts = [0]*20
+  totals = Counter()
+  numDocs = [0]*20
+  for i in range(len(counts)):
+    counts[i] = Counter()
+  for message in mi:
+    numDocs[message.newsgroupnum] += 1
+    words = counter_add(message.body, message.subject)
+    for word in words:
+      dictionary[word] = 1
+      counts[message.newsgroupnum][word] += words[word]
+      #totals[word] += words[word]
+  output = ['']*20
+  # Perform classification
+  # ensures we print the first $X of each class
+  print_counts = Counter()
+  # used for accuracy computation
+  corrects = 0
+  trials = 0
+  # prior probabilities of each class
+  priors = dict()
+  classes = range(20)
+  total = sum(numDocs)
+  for c in classes:
+    priors[c] = log(numDocs[c]/float(total))
+  for m in mi:
+    groupnum = m.newsgroupnum
+    words = counter_add(m.subject, m.body)
+    if print_counts[groupnum] >= 20:
+      continue
+    scores = []
+    for c in classes:
+      prob = 0
+      prob += priors[c]
+      for word in words:
+        term_prob = words[word]*(counts[c][word]+1)/float(numDocs[c]+len(dictionary))  # Need smoothing?
+        prob += log(term_prob)
+      scores.append((prob,c))
+    #print("\t".join(map(lambda (prob,c) : str(prob), scores)))
+    print_counts[groupnum] += 1
+    predicted_class = max(scores)[1]
+    if predicted_class == groupnum:
+      corrects += 1
+    trials += 1
+    print("actual class : " + str(groupnum) ,file=sys.stderr)
+    print("predicted class : " + str(predicted_class) ,file=sys.stderr)
+    print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)
+    output[groupnum] += str(predicted_class)+"\t"
+  for i in range(len(output)):
+    print(output[i][:-1])
+
 def twcnb(mi):
   pass
 
