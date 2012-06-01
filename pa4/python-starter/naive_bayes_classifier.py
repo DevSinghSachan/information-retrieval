@@ -121,7 +121,6 @@ def binomial_chi2(mi):
 def multinomial(mi):
   dictionary = dict()
   counts = [0]*20
-  totals = Counter()
   numDocs = [0]*20
   for i in range(len(counts)):
     counts[i] = Counter()
@@ -131,7 +130,6 @@ def multinomial(mi):
     for word in words:
       dictionary[word] = 1
       counts[message.newsgroupnum][word] += words[word]
-      #totals[word] += words[word]
   output = ['']*20
   # Perform classification
   # ensures we print the first $X of each class
@@ -155,8 +153,8 @@ def multinomial(mi):
       prob = 0
       prob += priors[c]
       for word in words:
-        term_prob = words[word]*(counts[c][word]+1)/float(numDocs[c]+len(dictionary))  # Need smoothing?
-        prob += log(term_prob)
+        term_prob = (counts[c][word]+.5)/float(numDocs[c]+.5*len(dictionary))  # Need smoothing?
+        prob += words[word]*log(term_prob)
       scores.append((prob,c))
     #print("\t".join(map(lambda (prob,c) : str(prob), scores)))
     print_counts[groupnum] += 1
@@ -170,6 +168,7 @@ def multinomial(mi):
     output[groupnum] += str(predicted_class)+"\t"
   for i in range(len(output)):
     print(output[i][:-1])
+
 def twcnb(mi):
   pass
 
