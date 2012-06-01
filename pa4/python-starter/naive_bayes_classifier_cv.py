@@ -6,6 +6,7 @@ import sys
 from collections import Counter
 from message_iterators import MessageIterator
 from heapq import *
+from random import shuffle
 
 def counter_add(c1, c2):
   c = Counter()
@@ -24,7 +25,7 @@ def prior(class_counts, classnum):
   return class_counts[classnum] / float(doc_count)
 
 
-def binomial(mi):
+def binomial(mi,test):
   # how many docs in each class
   class_counts = Counter()
   # count of words in each class
@@ -47,19 +48,19 @@ def binomial(mi):
         dictionaries[groupnum] = set()
       dictionaries[groupnum].add(w)
       class_words[groupnum][w] += 1
-  # ensures we print the first $X of each class
-  print_counts = Counter()
   # used for accuracy computation
   corrects = 0
   trials = 0
   # prior probabilities of each class
   priors = dict()
   for c in classes:
-    priors[c] = log(prior(class_counts, c))    
-  for m in mi:
+    priors[c] = log(prior(class_counts, c))
+  n = 0
+  for m in test:
+    n += 1
+    if n%100 == 0:
+      print("\tPercent Done: " + str(float(n)/len(test)) ,file=sys.stderr)
     groupnum = m.newsgroupnum
-    if print_counts[groupnum] >= 20:
-      continue
     scores = []
     for c in classes:
       prob = 0
@@ -70,16 +71,15 @@ def binomial(mi):
           term_prob = 1 - term_prob
         prob += log(term_prob)
       scores.append((prob,c))
-    print("\t".join(map(lambda (prob,c) : str(prob), scores)))
-    print_counts[groupnum] += 1
     predicted_class = max(scores)[1]
     if predicted_class == groupnum:
       corrects += 1
     trials += 1
-    print("actual class : " + str(groupnum) ,file=sys.stderr)
+    """print("actual class : " + str(groupnum) ,file=sys.stderr)
     print("predicted class : " + str(predicted_class) ,file=sys.stderr)
-    print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)
-def binomial_chi2(mi):
+    print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)"""
+  return float(corrects) / trials
+def binomial_chi2(mi,test):
   # Create index by category
   counts = [0]*20
   totals = Counter()
@@ -118,9 +118,9 @@ def binomial_chi2(mi):
     for word in message.subject:
       if(wordlist[message.newsgroupnum].count(word)==0):
         message.subject[word] = 0
-  binomial(mi)
+  return binomial(mi,test)
 
-def multinomial(mi):
+def multinomial(mi,test):
   dictionary = dict()
   counts = [0]*20
   numDocs = [0]*20
@@ -134,8 +134,6 @@ def multinomial(mi):
       counts[message.newsgroupnum][word] += words[word]
   output = ['']*20
   # Perform classification
-  # ensures we print the first $X of each class
-  print_counts = Counter()
   # used for accuracy computation
   corrects = 0
   trials = 0
@@ -145,144 +143,31 @@ def multinomial(mi):
   total = sum(numDocs)
   for c in classes:
     priors[c] = log(numDocs[c]/float(total))
-  for m in mi:
+  n = 0
+  for m in test:
+    if n%1000 == 0:
+      print("\tPercent Done: " + str(float(n)/len(test)) ,file=sys.stderr)
+    n += 1
     groupnum = m.newsgroupnum
     words = counter_add(m.subject, m.body)
-    if print_counts[groupnum] >= 20:
-      continue
     scores = []
     for c in classes:
       prob = 0
       prob += priors[c]
       for word in words:
-        alpha = .5
+        alpha = 1
         term_prob = (counts[c][word]+alpha)/float(numDocs[c]+alpha*len(dictionary)) # Need smoothing?
         prob += words[word]*log(term_prob)
       scores.append((prob,c))
-    #print("\t".join(map(lambda (prob,c) : str(prob), scores)))
-    print_counts[groupnum] += 1
     predicted_class = max(scores)[1]
     if predicted_class == groupnum:
       corrects += 1
     trials += 1
-    print("actual class : " + str(groupnum) ,file=sys.stderr)
+    """print("actual class : " + str(groupnum) ,file=sys.stderr)
     print("predicted class : " + str(predicted_class) ,file=sys.stderr)
-    print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)
-    output[groupnum] += str(predicted_class)+"\t"
-  for i in range(len(output)):
-    print(output[i][:-1])
+    print("accuracy : " + str(float(corrects) / trials) ,file=sys.stderr)"""
 
-
-
-def twcnb_init(mi, filter_func=None):
-  """
-  converts the mi into the needed weight format we need
-  for all of the twcnb-related functions
-  """
-  class_words = dict()  
-  for m in mi:
-    groupnum = m.newsgroupnum
-    if not groupnum in class_words:
-      class_words[groupnum] = Counter()
-    doc = counter_add(m.subject, m.body)
-    # as a hack just put everything in m.body
-    m.body = doc
-  if filter_func:
-    # should modify mi in place, but whatever
-    mi = filter_func(mi)
-  for m in mi:
-    groupnum = m.newsgroupnum
-    for w in m.body:
-      if m.body[w] <= 0:
-        continue
-      class_words[groupnum][w] += 1  
-  return class_words
-
-def cnb_filter(class_words):
-  # we need to know how big the dictionary is
-  dictionary = set()
-  for c in class_words:
-    dictionary = dictionary.union(class_words[c].keys())
-  alpha = len(dictionary)
-  cc_words = dict()
-  # LINE 4 PAGE 7
-  for c in class_words:
-    cc_words[c] = Counter()
-    denom = len(class_words[c]) # alpha
-    for j in class_words:
-      if j == c:
-        continue
-      for k in class_words[j]:
-        denom += class_words[j][k]
-    for i in class_words[c]:
-      num = 1
-      for j in class_words:
-        if j == c:
-          continue
-        num += class_words[j][i]
-      cc_words[c][i] = log(num / float(denom))
-  return cc_words
-
-def wcnb_filter(class_words):
-  for c in class_words:
-    weight_sum = 0.0
-    for w in class_words[c]:
-      weight_sum += abs(class_words[c][w])
-    for  w in class_words[c]:
-      class_words[c][w] /= weight_sum
-  return class_words
-
-def twcnb_filter(mi):
-  # EQUATION 1
-  for m in mi:
-    for w in m.body:
-      m.body[w] = log(m.body[w] + 1)
-  # EQUATION 2
-  for m in mi:
-    for i in m:
-      num = len(mi)
-      denom = 0
-      for j in mi:
-        if mi[j][i] > 0:
-          denom += 1
-  return mi
-          
-
-def advanced_nb(mi, weight_filter_func, message_filter_func=None):
-  if message_filter_func != None:
-    mi = message_filter_func(mi)
-  class_words = twcnb_init(mi)
-  class_words = weight_filter_func(class_words)
-  class_count = Counter()
-  correct = 0
-  total = 0
-  for m in mi:
-    groupnum = m.newsgroupnum
-    if class_count[groupnum] >= 20:
-      continue
-    class_count[groupnum] += 1
-    doc = counter_add(m.body,m.subject)
-    scores = []
-    for c in class_words:
-      score = 0
-      for w in doc:
-        score += doc[w] * class_words[c][w]
-      scores.append((score, c))
-    total += 1
-    predicted_class = min(scores)[1]
-    if predicted_class == groupnum:
-      correct += 1
-    print("actual class : " + str(groupnum), file=sys.stderr)
-    print("predicted class : " + str(predicted_class), file=sys.stderr)
-    print("accuracy : " + str(float(correct) / total), file=sys.stderr)
-
-def cnb(mi):
-  advanced_nb(mi, cnb_filter)
-def wcnb(mi):
-  advanced_nb(mi, lambda cw : wcnb_filter(cnb_filter(cw)))
-
-def twcnb(mi):
-  pass
+  return float(corrects) / trials
 
 def output_probability(probs):
   for i, prob in enumerate(probs):
@@ -296,10 +181,7 @@ def output_probability(probs):
 MODES = {
     'binomial': binomial,
     'binomial-chi2': binomial_chi2,
-    'multinomial': multinomial,
-    'twcnb': twcnb,
-    'cnb' : cnb,
-    'wcnb' : wcnb
+    'multinomial': multinomial
     # Add others here if you want
     }
 
@@ -311,13 +193,19 @@ def main():
   train = sys.argv[2]
 
   mi = MessageIterator(train)
-
-  #try:
-  MODES[mode](mi)
-  #except KeyError:
-  #  print("Unknown mode: {0}".format(mode),file=sys.stderr)
-  #  print("Accepted modes are: {0}".format(MODES.keys()), file=sys.stderr)
-  #  sys.exit(-1)
+  data = [m for m in mi]
+  shuffle(data)
+  k = 10
+  trials = [0]*k
+  size = len(data)
+  for i in range(k):
+    print("iteration : " + str(i+1) +"/"+str(k),file=sys.stderr)
+    train = data[(i*size)/k:((i+1)*size)/k]
+    test = data[:(i*size)/k]
+    test.extend(data[((i+1)*size)/k:])
+    trials[i] = MODES[mode](train,test)
+    print(trials[i])
+  print(trials)
 
 if __name__ == '__main__':
   main()
