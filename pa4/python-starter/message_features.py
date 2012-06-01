@@ -7,17 +7,19 @@ from collections import Counter
 
 SUBJECT_TAG = "Subject: "
 
+
+
 MAX_TOKEN_LEN = 20
 MIN_WORD_LEN = 3;
-NUM_RE = re.compile(r"([0-9]+)")
-WORD_RE = re.compile(r"([a-zA-Z'\-]+)")
-ALPHANUM_RE = re.compile(r"(\w+)")
-HYPERLINK_RE = re.compile(r"(http\:\/\/(\w+\.)+\w+)")
-EMAIL_RE = re.compile(r"([\w\-\.]+@[\w\-\.]+)")
-DELIMS_RE = re.compile(r"[\s\.()\"',-:;/\\?!@]+")
+NUM_RE = re.compile(r"^([0-9]+)$")
+WORD_RE = re.compile(r"^([a-zA-Z'\-]+)$")
+ALPHANUM_RE = re.compile(r"^(\w+)$")
+HYPERLINK_RE = re.compile(r"^(http\:\/\/(\w+\.)+\w+)$")
+EMAIL_RE = re.compile(r"^([\w\-\.]+@[\w\-\.]+)$")
+DELIMS_RE = re.compile(r"[\s\.()\&quot;',-:;/\\?!@]+") 
 
-class MessageFeatures:
-  
+
+class MessageFeatures: 
   def __init__(self, newsgroupnum, filename, stemmer, stopwords):
     self.newsgroupnum = newsgroupnum
     self.filename = filename

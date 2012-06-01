@@ -1,12 +1,9 @@
-
 from __future__ import print_function
-
 from cPickle import Unpickler
 import sys
 
 
 class MessageIterator(object):
-
   def __init__(self, inp_filename):
     self.filename = inp_filename
     with open(self.filename, 'rb') as inpfile:
