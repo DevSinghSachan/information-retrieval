@@ -110,8 +110,8 @@ def binomial_chi2(mi):
   for words in wordlist:
     output = '\t'.join(words)
     print(output)
-  #remove words that aren't used
   mi = list(mi)
+  #remove words that aren't used
   for message in mi:
     for word in message.body:
       if(wordlist[message.newsgroupnum].count(word)==0):
