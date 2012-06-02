@@ -1,5 +1,5 @@
 from __future__ import print_function
-from math import log
+from math import log, sqrt
 from itertools import islice
 import sys
 
@@ -110,6 +110,7 @@ def binomial_chi2(mi):
   for words in wordlist:
     output = '\t'.join(words)
     print(output)
+  mi = list(mi)
   #remove words that aren't used
   for message in mi:
     for word in message.body:
@@ -233,22 +234,40 @@ def wcnb_filter(class_words):
   return class_words
 
 def twcnb_filter(mi):
+  dictionary = set()
+  mi_len = 0
   # EQUATION 1
   for m in mi:
+    mi_len += 1
     for w in m.body:
+      dictionary.add(w)
       m.body[w] = log(m.body[w] + 1)
   # EQUATION 2
+  idf = dict()
+  df = Counter()
   for m in mi:
-    for i in m:
-      num = len(mi)
-      denom = 0
-      for j in mi:
-        if mi[j][i] > 0:
-          denom += 1
-  return mi
-          
+    for w in m.body:
+      df[w] += 1
+  for w in df:
+    idf[w] = log(mi_len / float(df[w]))
+  for m in mi:
+    for i in m.body:
+      m.body[i] *= idf[i]
+  # EQUATION 3
+  for m in mi:
+    denom = 0.0
+    for i in m.body:
+      denom += m.body[i] **2
+    denom = float(sqrt(denom))
+    for i in m.body:
+      m.body[i] /= denom
+  return mi          
 
 def advanced_nb(mi, weight_filter_func, message_filter_func=None):
+  mi = list(mi)
+  for m in mi:
+    doc = counter_add(m.body,m.subject)
+    m.body = doc
   if message_filter_func != None:
     mi = message_filter_func(mi)
   class_words = twcnb_init(mi)
@@ -261,7 +280,7 @@ def advanced_nb(mi, weight_filter_func, message_filter_func=None):
     if class_count[groupnum] >= 20:
       continue
     class_count[groupnum] += 1
-    doc = counter_add(m.body,m.subject)
+    doc = m.body
     scores = []
     for c in class_words:
       score = 0
@@ -280,9 +299,8 @@ def cnb(mi):
   advanced_nb(mi, cnb_filter)
 def wcnb(mi):
   advanced_nb(mi, lambda cw : wcnb_filter(cnb_filter(cw)))
-
 def twcnb(mi):
-  pass
+  advanced_nb(mi, lambda cw : wcnb_filter(cnb_filter(cw)),twcnb_filter)  
 
 def output_probability(probs):
   for i, prob in enumerate(probs):
@@ -297,10 +315,9 @@ MODES = {
     'binomial': binomial,
     'binomial-chi2': binomial_chi2,
     'multinomial': multinomial,
-    'twcnb': twcnb,
     'cnb' : cnb,
-    'wcnb' : wcnb
-    # Add others here if you want
+    'wcnb' : wcnb,
+    'twcnb': twcnb
     }
 
 def main():
