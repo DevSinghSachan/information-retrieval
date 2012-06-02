@@ -229,7 +229,7 @@ def wcnb_filter(class_words):
     weight_sum = 0.0
     for w in class_words[c]:
       weight_sum += abs(class_words[c][w])
-    for  w in class_words[c]:
+    for w in class_words[c]:
       class_words[c][w] /= weight_sum
   return class_words
 
@@ -275,8 +275,11 @@ def advanced_nb(mi, weight_filter_func, message_filter_func=None):
   class_count = Counter()
   correct = 0
   total = 0
+  preds = dict()
   for m in mi:
     groupnum = m.newsgroupnum
+    if not groupnum in preds:
+      preds[groupnum] = []
     if class_count[groupnum] >= 20:
       continue
     class_count[groupnum] += 1
@@ -294,13 +297,19 @@ def advanced_nb(mi, weight_filter_func, message_filter_func=None):
     print("actual class : " + str(groupnum), file=sys.stderr)
     print("predicted class : " + str(predicted_class), file=sys.stderr)
     print("accuracy : " + str(float(correct) / total), file=sys.stderr)
-
+    preds[groupnum].append(str(predicted_class))
+  for group in range(20):
+    print("\t".join(preds[group]))
 def cnb(mi):
   advanced_nb(mi, cnb_filter)
 def wcnb(mi):
   advanced_nb(mi, lambda cw : wcnb_filter(cnb_filter(cw)))
 def twcnb(mi):
   advanced_nb(mi, lambda cw : wcnb_filter(cnb_filter(cw)),twcnb_filter)  
+def tcnb(mi):
+  advanced_nb(mi, lambda cw : cnb_filter(cw), twcnb_filter)  
+def tnb(mi):
+  advanced_nb(mi, lambda cw : cw, twcnb_filter)  
 
 def output_probability(probs):
   for i, prob in enumerate(probs):
@@ -317,7 +326,9 @@ MODES = {
     'multinomial': multinomial,
     'cnb' : cnb,
     'wcnb' : wcnb,
-    'twcnb': twcnb
+    'twcnb': twcnb,
+    'tcnb': tcnb,
+    'tnb': tnb
     }
 
 def main():
