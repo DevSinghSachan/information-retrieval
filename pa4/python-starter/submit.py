@@ -193,7 +193,7 @@ def output(partId, ch_aux):
   test_file = NamedTemporaryFile(delete=False)
   test_file.write(ch_aux)
   test_file.close()
-  dataLocation = 'train.gz' # set it to out.pk if you used python
+  dataLocation = 'out.pk' # set it to out.pk if you used python
   
   if partId == 1:
     linesOutput = 400

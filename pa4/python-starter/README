@@ -1,4 +1,7 @@
 Partner names
+drosen41    Daniel Rosenberg
+erenrich    Daniel Erenrich
 
 Comments about how to run your code.
-
+To run cross validation, use
+python naive_baytes_classifier_cv.py <mode> <train>
